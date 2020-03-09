@@ -34,7 +34,7 @@ setup(
     name='cite_count',
     packages=find_packages(include=['cite_count', 'cite_count.py','utilities.py']),
     url='https://github.com/ndu-UCSD/cite_count',
-    version='1.0.0',
+    version='0.5.0',
     include_package_data=True,
     zip_safe=False,
 )
