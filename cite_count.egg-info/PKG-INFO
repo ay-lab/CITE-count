@@ -1,0 +1,38 @@
+Metadata-Version: 2.1
+Name: cite-count
+Version: 0.5.1
+Summary: Read and QC totalseq A fastq files and export count ADT matrix, merge with sc RNASeq data and export to scanpy
+Home-page: https://github.com/ndu-UCSD/cite_count
+Author: Niu Du
+Author-email: jiyin.dna@gmail.com
+License: MIT license
+Description: CITE-count
+        ============
+        
+        
+        Preprocess fastq files and filter out low Antibody count 
+        ----------------------
+        * Input unziped fastq filrs (forward and reverse).
+          to be finished
+        
+        Import RNA data from Seurat, scanpy and count table
+        ----------------------
+        
+        
+        Allow clustering of single cells using CITE seq data in a flowcytometry fashion
+        ----------------------
+        * Aliquot sc data
+        
+Keywords: cite count
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Requires-Python: >=3.5
+Description-Content-Type: text/markdown
