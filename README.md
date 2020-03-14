@@ -20,27 +20,30 @@ Install test version:
 # Fastq import and tag counts QC
 
 ### Fastq preprocessing
-------
+
 <img src="./img/Pre_processing.png" width="600" align="left"/>
 The development of this pipeline was based on 10X 3' capture version 3 chemistry, and information stored in the fastq sequences are demonstrated here.
-
+------
 
 
 ### Antibody sequence recovery
-------
+
 Due to sequencing error, some of the antibody tag sequence in fastq R2 was not found in the reference list (But they should be). For such instances we designed an error correction algorithm to recover some of the mismatched reads by conducting pairwise comparison between the "no assignment" reads and reference tag sequence. More specifically, we first compare the similarity of the reference totalseq A sequence using a scoring system, and from the score frequency deduce a "safe" score for merging similar sequence without introducing false positive. Then we compare all of the unassigned tag reads to reference sequence, and if an unassigned read has score more than the "safe" value when comparing to a reference sequence (in this case 25), that read will be recovered and assigned to its corresponding tag counts.
 
 <img src="./img/recovery.png" width="600" align="center"/>
-
+------
 ### Minimal and maximal tag counts per library
--
 Not all 10X GEM captured antibody tags are associated with the cell surface markers. There are two scenarios where bias were introduced to final tag counts: 1. tags bond to cell debris and/or some free floating tags been captured, and 2. a clump of antibody formed and been captured.
 
 <img src="./img/minimal_theshold.png" width="400" align="left"/>
 To address these issues, we first fit the Total cells (unique cell barcodes)/UNI-counts per cell data with a modified Platt function ([Jassby & Platt, 1976](https://aslopubs.onlinelibrary.wiley.com/doi/epdf/10.4319/lo.1976.21.4.0540)), and user can select a more stringent (full saturation) threshold for reducing false positive or less stringent (half saturation) threshold for higher recovery rate; a fixed threshold value is also available however not recommended.
 
-<img src="./img/outlier_filter.png" width="600" align="right"/>
+<img src="./img/outlier_filter.png" width="600" align="center"/>
+------
+
 For detecting outliers due to clumping, we assume the UMI counts per cell fits Gaussian distribution and filter out reads that is not within the distribution at given probability (default p = 10<sup>-6</sup>)
+
+
 
 [Tutorial](https://github.com/ndu-UCSD/CITE-count/blob/master/Preprocessing.ipynb) on how to process fastq files with CITE-count.
 
