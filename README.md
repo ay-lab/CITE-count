@@ -16,13 +16,14 @@ Install test version:
 
 <code>pip install -i https://test.pypi.org/simple/ cite-count==0.5.2</code>
 
+
 # Fastq import and tag counts QC
 
 ### Fastq preprocessing
 ------
 <img src="./img/Pre_processing.png" width="600" align="left"/>
-
 The development of this pipeline was based on 10X 3' capture version 3 chemistry, and information stored in the fastq sequences are demonstrated here.
+
 
 
 ### Antibody sequence recovery
