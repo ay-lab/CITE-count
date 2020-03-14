@@ -1,6 +1,6 @@
 from utilities import *
 
-import scanpy.api as sc
+import scanpy as sc
 import numpy as np
 import pandas as pd
 from anytree import Node,RenderTree
@@ -45,18 +45,26 @@ class RNA_count:
         df_count = None
         self.list_barcodes = list(self.df_RNA_count.index)
         
-    def import_count_table(self,count_table,overwrite = False,flip = False):
+    def import_count_table(self,count_table,overwrite = False):
         '''
         Import count table with cells in index and genes in columns (flip if needed)
         '''
         symbol = lambda x: {'csv':',','tsv':'\t'}[x]
-        self.df_RNA_count = pd.read_csv(count_table,sep = symbol(count_table.split('.')[-1])).set_index('Unnamed: 0')
-        self.df_RNA_count = self.df_RNA_count[self.df_RNA_count.sum(axis = 1)>0]
-        if flip:
-            self.df_RNA_count = self.df_RNA_count.T
+        self.df_RNA_count = pd.read_csv(count_table,sep = symbol(count_table.split('.')[-1]),index_col = 0)
         self.df_RNA_count = self.df_RNA_count[self.df_RNA_count.sum(axis = 1)>0]
         self.list_barcodes = list(self.df_RNA_count.index)
         
+    def import_h5(self,path_h5,overwrite = False):
+        self.feature_bc_matrix = get_matrix_from_h5(path_h5)
+        self.list_barcodes = [str(x).split('-')[0][2:] for x in self.feature_bc_matrix.barcodes]
+        
+        if os.path.isfile('cache/%s/df_RNA_count.pkl'%self.PROJ_NAME) and overwrite == False:
+            self.df_RNA_count = pd.read_pickle('cache/%s/df_RNA_count.pkl'%self.PROJ_NAME)
+            
+        else:
+            self.df_RNA_count = pd.DataFrame([list(self.feature_bc_matrix.matrix[:,cell].T.toarray()[0]) for cell in tqdm(np.arange(len(self.list_barcodes)))],index=self.list_barcodes,columns=self.feature_bc_matrix.feature_names)
+            self.df_RNA_count = self.df_RNA_count.T[self.df_RNA_count.T.sum(axis = 1)>0].T
+            self.df_RNA_count.to_pickle('cache/%s/df_RNA_count.pkl'%self.PROJ_NAME)
     
     def save_cache(self):
         with open('cache/%s/cache_RNA.pkl'%self.PROJ_NAME, 'wb') as f:
@@ -68,18 +76,19 @@ class RNA_count:
                 self.data_type,self.list_barcodes,self.df_RNA_count = pickle.load(f)
         except OSError:
             print('Loading error, cache file may not exist.')
-    
-    def qc_data(self,dpi = 100,bins = 100):
-        f,ax = plt.subplots(1,2,figsize = (10,3),dpi = dpi)
-        ax[0].hist(np.log10(self.df_RNA_count.sum(axis = 1)), bins=bins)
+        
+    def qc_results(self,bins = 100,dpi = 100):
+        umis_per_cell = self.df_RNA_count
+        f,ax = plt.subplots(1,2,figsize = (10,3),dpi = 80)
+        ax[0].hist(np.log10(umis_per_cell.sum(axis = 1)), bins=bins)
         ax[0].set_xlabel('UMI counts per cell (log10)')
-        ax[0].set_title('UMI counts Distribution')
-        ax[1].hist(np.log10(self.df_RNA_count.sum(axis = 0)), bins=bins)
+        ax[0].set_ylabel('Frequency')
+        ax[0].set_title('UMI Distribution')
+        ax[1].hist(np.log10((umis_per_cell>0).sum(axis = 1)), bins=bins)
         ax[1].set_xlabel('gene counts per cell (log10)')
         ax[1].set_title('gene counts Distribution')
-        ax[0].set_ylabel('Frequency')
-
-
+        ax[1].set_ylabel('Frequency')
+        
 class AB_count:
 
     "Process raw sequence files and predict labels for each barcoded cell"
@@ -110,7 +119,7 @@ class AB_count:
         
     def import_counts(self,count_table):
         symbol = lambda x: {'csv':',','tsv':'\t'}[x]
-        self.df_merge_UMI_mx = pd.read_csv(count_table,sep = symbol(count_table.split('.')[-1])).set_index('Unnamed: 0').T
+        self.df_merge_UMI_mx = pd.read_csv(count_table,sep = symbol(count_table.split('.')[-1]),index_col = 0)
         self.AB_list = list(self.df_merge_UMI_mx.columns)
         self.dict_tag = dict(zip(self.AB_list,self.AB_list))
         self.df_tag_count = pd.DataFrame(self.df_merge_UMI_mx.sum(axis = 1),columns=['count'])
@@ -187,7 +196,12 @@ class AB_count:
             self.df_merge_UMI_mx.to_pickle('cache/%s/UMI_Matrix.pkl'%self.PROJ_NAME)
     
     def qc_tag_label(self,max_population = 3, min_population_size = 0.2, confidence_interval = 0.90, verbose = False, ncol =3 ,dpi = 100,view = True):
-        "Convert tag UMI counts to labels based on stats results"
+        '''
+        Convert tag UMI counts to labels based on stats results
+        max_population: Define the maximal number of populations exist in sample datasets
+        min_population_size: The smallest population should have at least 20% population
+        confidence_interval: if unimodel was used, select the confidence interval for lower bound; 0.90 = 5% confidence one tail test
+        '''
         
         if view:
             f,ax = plt.subplots(ceil(len(self.AB_list)/ncol),ncol,figsize = (min(16,ncol*5),3*ceil(len(self.AB_list)/ncol)),dpi = dpi)
@@ -347,24 +361,41 @@ class CITE_count:
             if obj.name == name:
                 return obj.list_cell
     
-    def sc_func_import(self,group = None):
-        if group == None:
-            sc_input = self.df_RNA_count
-            self.group_norm = self.get_group_by_depth(0)
-        else:
-            sc_input = self.df_RNA_count.loc[Hawk_smash(self.get_group_barcode(g) for g in group)]
-            self.group_norm = group
-            
-            
+    def qc_results(self,bins = 100,dpi = 100):
+        umis_per_cell = self.df_RNA_count
+        f,ax = plt.subplots(1,2,figsize = (10,3),dpi = 80)
+        ax[0].hist(np.log10(umis_per_cell.sum(axis = 1)), bins=bins)
+        ax[0].set_xlabel('UMI counts per cell (log10)')
+        ax[0].set_ylabel('Frequency')
+        ax[0].set_title('UMI Distribution')
+        ax[1].hist(np.log10((umis_per_cell>0).sum(axis = 1)), bins=bins)
+        ax[1].set_xlabel('gene counts per cell (log10)')
+        ax[1].set_title('gene counts Distribution')
+        ax[1].set_ylabel('Frequency')
+        
+    
+    def export_to_scanpy(self,tag_export = 'count'):
+        '''
+        Export to scanpy object
+        tag_export = 'count' - export tag counts
+        tag_export = 'label' - export tag label, 0 for low and 1 for high
+        
+        '''
+        sc_input = self.df_RNA_count    
+        sc_export = sc.AnnData(X = sc_input.values)
+        sc_export.obs.index = sc_input.index
+        if tag_export == 'count':
+            sc_export.obs = self.df_AB_count.loc[sc_input.index]
+        elif tag_export == 'label':
+            sc_export.obs = self.df_AB_tag.loc[sc_input.index]
+        sc_export.var.index = sc_input.columns
+        return sc_export
+        
+    def PCA(self,group = None,n_components=200, view = False):
+        sc_input = self.df_RNA_count   
         self.sc = sc.AnnData(X = sc_input.values)
         self.sc.obs.index = sc_input.index
         self.sc.var.index = sc_input.columns
-        dict_group = dict()
-        for g in group:
-            dict_group.update(dict(zip(self.get_group_barcode(g),[g for x in np.arange(len(self.get_group_barcode(g)))])))
-        self.sc.obs['tree'] = self.sc.obs.index.map(lambda x: dict_group[x])
-        
-    def PCA(self,group = None,n_components=200, view = False):
         sc.tl.pca(self.sc, n_comps=n_components)
         self.PCA_result = self.sc.obsm['X_pca']
         if view == True:
@@ -372,15 +403,22 @@ class CITE_count:
             plt.xlabel('Principle components')
             plt.ylabel('Variance %')
             plt.title('PCA for group %s'%str(group))
-
     
-    def umap(self,n_components = 10,label = None,kind = 'tree',color_scheme = 'Paired',n_neighbors=5, min_dist=0.3, metric='correlation',marker_size = 2,dpi = 100):
-        
+    def umap(self,n_components = 10,n_neighbors=5, min_dist=0.3, metric='correlation'):
         np.random.seed(0)
-        embedding = umap.UMAP(n_neighbors=n_neighbors,
+        
+        self.embedding = umap.UMAP(n_neighbors=n_neighbors,
                       min_dist=min_dist,
                       metric=metric).fit_transform(self.PCA_result[:,:n_components])
-            
+    
+    def umap_plot(self,label = None,kind = 'tree',color_scheme = 'Paired',marker_size = 2,dpi = 100):
+        self.color = []
+        self.legend_elements = []
+        
+        self.group_norm = self.get_group_by_ID([0]) # This could be edited in the future for subsetting cells
+        
+        embedding = self.embedding
+        
         if kind == 'tree':
             if label == None:
                 group_label = self.get_all_leaves()
@@ -392,105 +430,59 @@ class CITE_count:
                 if group not in group_label:
                     dict_label_color[group] = (1.0,1.0,1.0)
 
-            try:
-                dict_cell_cluster = dict(self.sc.obs['louvain'])
-                dict_cluster_color = dict(zip(list(set(self.sc.obs['louvain'])),sns.color_palette(color_scheme,len(set(self.sc.obs['louvain'])))))
-                dict_cell_cluster = dict(zip(dict_cell_cluster.keys(),[dict_cluster_color[dict_cell_cluster[cell]] for cell in dict_cell_cluster.keys()])) 
-                enabe_cluster = True
-            except KeyError:
-                enabe_cluster = False
-                
-            # Config legend
-            legend_elements_AB, legend_elements_cluster = [],[]
-            for pre, fill, node in RenderTree(self.Obj_tree[0][0].Node):
-                legend_elements_AB.append(Line2D([0], [0], marker='o',color = 'w', markerfacecolor = dict_label_color[node.name.split('(')[0][:-1]], label="%s%s" % (pre, node.name)))        
-            for cluster in np.arange(len(dict_cluster_color)):
-                legend_elements_cluster.append(Line2D([0], [0], marker='o',color = 'w', markerfacecolor = dict_cluster_color[str(cluster)], label="cluster %s" %str(cluster)))        
 
-            
+            for pre, fill, node in RenderTree(self.Obj_tree[0][0].Node):
+                self.legend_elements.append(Line2D([0], [0], marker='o',color = 'w', markerfacecolor = dict_label_color[node.name.split('(')[0][:-1]], label="%s%s" % (pre, node.name)))        
+
             # Color code cells        
             dict_cell_color = dict()
             for group in group_label:
                 c = dict_label_color[group]
                 dict_cell_color.update(dict(zip(self.get_group_barcode(group),[c for xx in np.arange(len(self.get_group_barcode(group)))])))
 
-            color = [] # init color for ploting
-            color_cluster = []
             for i,group in enumerate(self.group_norm):
                 df_group = self.df_RNA_count.loc[self.get_group_barcode(group)]
                 for cell in self.get_group_barcode(group):
                     try:
-                        color.append(dict_cell_color[cell])
+                        self.color.append(dict_cell_color[cell])
                     except KeyError:    
-                        color.append((0.9,0.9,0.9))
-                    if enabe_cluster:
-                        try:
-                            color_cluster.append(dict_cell_cluster[cell])
-                        except KeyError:    
-                            color_cluster.append((0.9,0.9,0.9))
-                    
-            if enabe_cluster:
-                f,ax = plt.subplots(1,2,figsize = (16,8),dpi = dpi)
-                ax[0].scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = color_cluster)
-                ax[1].scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = color)
-                ax[0].set_aspect('equal', 'datalim')
-                ax[1].set_aspect('equal', 'datalim')
-                ax[0].set_title('UMAP projection with Louvain cluster', fontsize=18);
-                ax[1].set_title('UMAP projection with antibody labels', fontsize=18);
-                ax[0].legend(handles=legend_elements_cluster)
-                ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.,handles=legend_elements_AB,fontsize = min(16,250/len(self.get_all_groups())))
-            
-            else:
-                plt.subplots(1,1,figsize = (8,8),dpi = dpi)
-                plt.scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = color)
-                plt.gca().set_aspect('equal', 'datalim')
-                plt.title('UMAP projection with antibody labels', fontsize=18);
-                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.,handles=self.legend_elements,fontsize = min(16,250/len(self.get_all_groups())))
-
+                        self.color.append((0.9,0.9,0.9))        
+                        
+            plt.subplots(1,1,figsize = (8,8),dpi = dpi)
+            plt.scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = self.color)
+            plt.gca().set_aspect('equal', 'datalim')
+            plt.title('UMAP projection with antibody labels', fontsize=18);
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.,handles=self.legend_elements,fontsize = min(16,250/len(self.get_all_groups())))
+        
         elif kind == 'gene':
+            dict_RNA_selection_log = dict(self.df_RNA_count[label].apply(lambda x: np.log(x+1)))
+            for group in self.group_norm:
+                df_group = self.df_RNA_count.loc[self.get_group_barcode(group)]
+                for cell in self.get_group_barcode(group):
+                    try:
+                        self.color.append(dict_RNA_selection_log[cell])
+                    except KeyError:    
+                        self.color.append(0)
 
-            f,ax = plt.subplots(ceil(len(label)/3),3,figsize = (15,1.5*max(3,len(label))),dpi = dpi)
-            ax = ax.ravel()
-            
-            for i,gene in enumerate(label):
-                
-                color = [] # init color for ploting
-                dict_RNA_selection_log = dict(self.df_RNA_count[gene].apply(np.log10))
-                
-                for group in self.group_norm:
-                    df_group = np.log10(self.df_RNA_count[gene].loc[self.get_group_barcode(group)])
-                    for cell in self.get_group_barcode(group):
-                        try:
-                            color.append(dict_RNA_selection_log[cell])
-                        except KeyError:    
-                            color.append(0)
-                
-                im = ax[i].scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = color, cmap= color_scheme)
-                ax[i].set_aspect('equal', 'datalim')                    
-                ax[i].set_title('%s'%gene, fontsize=18);
-                plt.colorbar(im,ax = ax[i])
+            plt.subplots(1,1,figsize = (10,8),dpi = dpi)
+            plt.scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = self.color, cmap= color_scheme)
+            plt.gca().set_aspect('equal', 'datalim')
+            plt.title('UMAP projection with antibody labels', fontsize=18);
+            plt.colorbar()
             
         elif kind == 'antibody':
+            dict_AB_selection = dict(self.df_AB_count[label].apply(lambda x: np.log(x+1)))
+            
+            for group in self.group_norm:
+                df_group = self.df_RNA_count.loc[self.get_group_barcode(group)]
+                for cell in self.get_group_barcode(group):
+                    try:
+                        self.color.append(dict_AB_selection[cell])
+                    except KeyError:    
+                        self.color.append(0)
 
-            f,ax = plt.subplots(ceil(len(label)/3),3,figsize = (15,1.5*max(3,len(label))),dpi = dpi)
-            ax = ax.ravel()
-            
-            for i,AB in enumerate(label):
-                
-                color = [] # init color for ploting
-                dict_AB_selection = dict(self.df_AB_count[AB].apply(np.log10))
-
-                for group in self.group_norm:
-                    df_group = np.log10(self.df_AB_count.loc[self.get_group_barcode(group)])
-                    for cell in self.get_group_barcode(group):
-                        try:
-                            color.append(dict_AB_selection[cell])
-                        except KeyError:    
-                            color.append(0)
-                        
-                im = ax[i].scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = color, cmap= color_scheme)
-                ax[i].set_aspect('equal', 'datalim')
-                ax[i].set_title('%s'%AB, fontsize=18);
-                plt.colorbar(im,ax = ax[i])
-            
-            
+            plt.subplots(1,1,figsize = (10,8),dpi = dpi)
+            plt.scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = self.color, cmap= color_scheme)
+            plt.gca().set_aspect('equal', 'datalim')
+            plt.title('UMAP projection with antibody labels', fontsize=18);
+            plt.colorbar()

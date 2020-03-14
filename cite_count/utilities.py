@@ -216,6 +216,31 @@ def get_key_by_name(dict_item,target):
 def get_geneid_by_name(list_gene,dict_item):
     return Hawk_smash([get_key_by_name(dict_item,name) for name in list_gene])
 
+# From http://cf.10xgenomics.com/supp/cell-exp/notebook_tutorial-3.0.0.html
+import collections
+import scipy.sparse as sp_sparse
+import h5py
 
 
+FeatureBCMatrix = collections.namedtuple('FeatureBCMatrix', ['feature_ids', 'feature_names', 'barcodes', 'matrix'])
 
+def get_matrix_from_h5(filename):
+    with h5py.File(filename,'r') as f:
+        if u'version' in f.attrs:
+            if f.attrs['version'] > 2:
+                raise ValueError('Matrix HDF5 file format version (%d) is an newer version that is not supported by this function.' % version)
+        else:
+            raise ValueError('Matrix HDF5 file format version (%d) is an older version that is not supported by this function.' % version)
+        
+        feature_ids = [x.decode('ascii', 'ignore') for x in f['matrix']['features']['id']]
+        feature_names = [x.decode('ascii', 'ignore') for x in f['matrix']['features']['name']]        
+        barcodes = list(f['matrix']['barcodes'][:])
+        matrix = sp_sparse.csc_matrix((f['matrix']['data'], f['matrix']['indices'], f['matrix']['indptr']), shape=f['matrix']['shape'])
+        return FeatureBCMatrix(feature_ids, feature_names, barcodes, matrix)
+
+def get_expression(fbm, gene_name):
+    try:
+        gene_index = feature_bc_matrix.feature_names.index(gene_name)
+    except ValueError:
+        raise Exception("%s was not found in list of gene names." % gene_name)
+    return fbm.matrix[gene_index, :].toarray().squeeze()
