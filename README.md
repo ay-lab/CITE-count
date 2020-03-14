@@ -28,8 +28,9 @@ The development of this pipeline was based on 10X 3' capture version 3 chemistry
 
 ### Antibody sequence recovery
 
+<img src="./img/recovery.png" width="600" align="right"/>
+
 Due to sequencing error, some of the antibody tag sequence in fastq R2 was not found in the reference list (But they should be). For such instances we designed an error correction algorithm to recover some of the mismatched reads by conducting pairwise comparison between the "no assignment" reads and reference tag sequence. More specifically, we first compare the similarity of the reference totalseq A sequence using a scoring system, and from the score frequency deduce a "safe" score for merging similar sequence without introducing false positive. Then we compare all of the unassigned tag reads to reference sequence, and if an unassigned read has score more than the "safe" value when comparing to a reference sequence (in this case 25), that read will be recovered and assigned to its corresponding tag counts.
-<img src="./img/recovery.png" width="600" align="center"/>
 
 
 ------
