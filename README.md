@@ -4,6 +4,7 @@
 CITE-count (A pipeline compatible with Totalseq A 10X 3'capture)
 ============
 <img src="./img/Dev_concept.png" width="200" height="350" align="right"/>
+
 * Motivation: As a popular antibody labeling technic, Totalseq A has been applied in CITE-Seq and LEAP-Seq based studies, yet the 10X software has very limited support for Totalseq A data preprocessing. Here we provided a pipeline that preprocess raw Totalseq A fastq files and conducts QC of the results. The pipeline can also import other totalseq data for QC, and merge with RNA-Seq result and export seamlessly to Scanpy pipeline.
 
 * Dev concept: There has been many tool developed for CITE-Seq analysis and more are coming, therefore this package is focused on three objectives that will become useful add-ons to other main-stream packages.
@@ -11,7 +12,9 @@ CITE-count (A pipeline compatible with Totalseq A 10X 3'capture)
 	* tag counts based cell separation and visualization
 	* Integrated Scanpy support - all downstream analysis can be done in Scanpy without further importing step required   
 
+Install test version:
 
+<code>pip install -i https://test.pypi.org/simple/ cite-count==0.5.2</code>
 
 # Fastq import and tag counts QC
 
