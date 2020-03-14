@@ -53,7 +53,7 @@ For detecting outliers due to clumping, we assume the UMI counts per cell fits G
 # Tag based cell separation
 
 ### Classifying antibody tag counts
--
+------
 The tag counts data usually exhibit bimodal distribution, similar to the flow-cytometry data used for cell selection. Therefore, We used mixed Gaussian and other model to fit the tag signal and classify them as low/high (labeled -/+) based on their distributions.
 
 <img src="./img/Bimodal.png" width="400" align="center"/>
