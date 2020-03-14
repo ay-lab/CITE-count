@@ -56,4 +56,4 @@ This function is similar to Jaccrd distance with better capacity separating cond
 
 ![](./img/dE_example.png)
 
-Based on the mutual exclusive index calculated from the defined function, the cells can be separated in a way similar to the flow-cytometry based cell selection workflow ([Example](./Cell_labeling.html)).
+Based on the mutual exclusive index calculated from the defined function, the cells can be separated in a way similar to the flow-cytometry based cell selection workflow ([Example](https://github.com/ndu-UCSD/CITE-count/blob/master/Combine_with_RNA_SEQ.ipynb)).
