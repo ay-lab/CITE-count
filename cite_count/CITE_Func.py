@@ -467,7 +467,7 @@ class CITE_count:
             plt.subplots(1,1,figsize = (10,8),dpi = dpi)
             plt.scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = self.color, cmap= color_scheme)
             plt.gca().set_aspect('equal', 'datalim')
-            plt.title('UMAP projection with antibody labels', fontsize=18);
+            plt.title('UMAP projection of gene expression level', fontsize=18);
             plt.colorbar()
             
         elif kind == 'antibody':
@@ -484,5 +484,5 @@ class CITE_count:
             plt.subplots(1,1,figsize = (10,8),dpi = dpi)
             plt.scatter(embedding[:, 0], embedding[:, 1],marker = '.',s = marker_size,c = self.color, cmap= color_scheme)
             plt.gca().set_aspect('equal', 'datalim')
-            plt.title('UMAP projection with antibody labels', fontsize=18);
+            plt.title('UMAP projection of antibody counts', fontsize=18);
             plt.colorbar()
